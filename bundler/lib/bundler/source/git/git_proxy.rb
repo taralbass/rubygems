@@ -137,6 +137,11 @@ module Bundler
             git "fetch", "--force", "--quiet", *extra_fetch_args(ref), dir: destination
           end
 
+          # this is here to illustrate how to reproduce, would obviously not be part of final PR
+          puts "sleeping"
+          sleep 10
+          puts "done sleeping!"
+
           git "reset", "--hard", @revision, dir: destination
 
           if submodules
@@ -145,6 +150,18 @@ module Bundler
             inner_command = "git -C $toplevel submodule deinit --force $sm_path"
             git_retry "submodule", "foreach", "--quiet", inner_command, dir: destination
           end
+        end
+
+        # Confirms the copy_to method ran through at least as far as git reset --hard to consider
+        # it installed. If a prior install got interrupted before that, it will not be considered installed
+        # and so will get reinstalled.
+        def installed_to?(install_path)
+          return false unless install_path.exist?
+
+          # Example reflog entry that captures git reset --hard command:
+          # acd5b6f2cb (grafted, HEAD -> main, origin/7-2-stable) HEAD@{0}: reset: moving to acd5b6f2cb8b2450281b637531c630ad5ce0ca1a
+          out = git "reflog", "-1", dir: install_path
+          /HEAD@\{0\}: reset: moving to #{@revision}/.match?(out)
         end
 
         private
