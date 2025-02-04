@@ -137,6 +137,11 @@ module Bundler
             git "fetch", "--force", "--quiet", *extra_fetch_args(ref), dir: destination
           end
 
+          # this is here to illustrate how to reproduce, would obviously not be part of final PR
+          puts "hit Ctrl-C now!"
+          sleep 10
+          puts "too late!"
+
           git "reset", "--hard", @revision, dir: destination
 
           if submodules
@@ -145,6 +150,15 @@ module Bundler
             inner_command = "git -C $toplevel submodule deinit --force $sm_path"
             git_retry "submodule", "foreach", "--quiet", inner_command, dir: destination
           end
+
+          SharedHelpers.filesystem_access(destination) do |p|
+            FileUtils.mkdir_p(dot_bundler_dir(p))
+            FileUtils.touch(done_file(p))
+          end
+        end
+
+        def installed_to?(install_path)
+          done_file(install_path).exist?
         end
 
         private
@@ -454,6 +468,14 @@ module Bundler
 
         def supports_cloning_with_no_tags?
           @supports_cloning_with_no_tags ||= Gem::Version.new(version) >= Gem::Version.new("2.14.0-rc0")
+        end
+
+        def dot_bundler_dir(install_path)
+          install_path.join('.bundler')
+        end
+
+        def done_file(install_path)
+          dot_bundler_dir(install_path).join('done')
         end
       end
     end
